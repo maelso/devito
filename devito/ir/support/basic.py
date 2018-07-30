@@ -492,9 +492,22 @@ class Dependence(object):
         assert source.function == sink.function
         self.source = source
         self.sink = sink
-        self.findices = source.findices
-        self.function = source.function
-        self.distance = source.distance(sink)
+
+    @property
+    def function(self):
+        return self.source.function
+
+    @property
+    def findices(self):
+        return self.source.findices
+
+    @property
+    def aindices(self):
+        return tuple({i, j} for i, j in zip(self.source.aindices, self.sink.aindices))
+
+    @cached_property
+    def distance(self):
+        return self.source.distance(self.sink)
 
     @property
     def _defined_findices(self):
@@ -517,6 +530,10 @@ class Dependence(object):
         return set()
 
     @property
+    def is_regular(self):
+        return self.source.is_regular and self.sink.is_regular
+
+    @property
     def is_increment(self):
         return self.source.is_increment and self.sink.is_increment
 
@@ -536,7 +553,7 @@ class Dependence(object):
         """Return True if ``dim`` may represent a reduction dimension for
         ``self``, False otherwise."""
         test0 = self.is_increment
-        test1 = self.source.is_regular and self.sink.is_regular
+        test1 = self.is_regular
         test2 = all(i not in self._defined_findices for i in dim._defines)
         return test0 and test1 and test2
 

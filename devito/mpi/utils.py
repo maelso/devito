@@ -4,10 +4,12 @@ from itertools import product
 from cached_property import cached_property
 
 from devito.ir.support import Scope, Forward
+from devito.logger import warning
+from devito.parameters import configuration
 from devito.types import OWNED, HALO, LEFT, RIGHT
-from devito.tools import as_mapper
+from devito.tools import Tag, as_mapper
 
-__all__ = ['get_views', 'HaloScheme', 'HaloSchemeException']
+__all__ = ['get_views', 'HaloScheme', 'HaloSchemeException', 'derive_halo_scheme']
 
 
 def get_views(f, fixed):
@@ -33,6 +35,71 @@ def get_views(f, fixed):
                 offsets.append(0)
         mapper[(dimension, side, region)] = (sizes, offsets)
     return mapper
+
+
+class HaloLabel(Tag):
+    pass
+NONE = HaloLabel('none')  # noqa
+UNSUPPORTED = HaloLabel('unsupported')
+STENCIL = HaloLabel('stencil')
+FULL = HaloLabel('full')
+
+
+def derive_halo_scheme(ispace, dspace, scope):
+    """
+    Derive a halo exchange scheme describing, for given iteration and
+    data spaces:
+
+        * what :class:`Function`s may require a halo update before executing
+          the iteration space,
+        * and what values of such :class:`Function`s should actually be exchanged
+
+    :param ispace: A :class:`IterationSpace` for which a halo scheme is built.
+    :param dspace: A :class:`DataSpace` describing the data access pattern
+                   within ``ispace``.
+    :param scope: A :class:`Scope` describing the data dependence pattern
+                  within ``ispace``.
+    """
+    mapper = {}
+    for d in ispace.dimensions:
+        for dep in scope.d_all:
+            f = dep.function
+            if not f.is_TensorFunction:
+                continue
+            if f.grid is None:
+                raise HaloSchemeException("`%s` requires a `Grid`" % f.name)
+            v = mapper.setdefault(f, {})
+            if f.grid.is_distributed(d):
+                if dep.is_regular:
+                    if d in dep.cause:
+                        # `d` is the cause of the dependency, but this situation
+                        # is semantically meaningless as decomposed dimensions should
+                        # never appear in sequential iteration spaces
+                        raise HaloSchemeException("`%s` is distributed, but is also used "
+                                                  "in a sequential iteration space" % d)
+                    else:
+                        v.setdefault(d, []).append(STENCIL)
+                else:
+                    raise HaloSchemeException("`%s` is distributed, so it cannot be used "
+                                              "to define irregular iteration space" % d)
+            elif d in dep.cause:
+                # A purely sequential dimension
+                v.setdefault(d, []).append(NONE)
+            elif dep.is_increment:
+                # A local distributed reduction. Users are expected to explicitly
+                # deal with this by themselves (e.g., via redundant computation)
+                v.setdefault(d, []).append(UNSUPPORTED)
+            else:
+                # We need to find out along what data dimensions `d` appears
+                # so that, conservatively, we can exchange all these halos
+                for i, j in zip(dep.aindices, dep.findices):
+                    if f.grid.is_distributed(j) and {None, d} & i:
+                        v.setdefault(j, []).append(FULL)
+
+    from IPython import embed; embed()
+    #if configuration['mpi']:
+    #    warning("Local distributed reductions over `%s` detected.")
+    #    continue
 
 
 class HaloScheme(object):

@@ -86,9 +86,10 @@ class NodeExprs(ScheduleTree):
 
     is_Exprs = True
 
-    def __init__(self, exprs, shape, ops, traffic, parent=None):
+    def __init__(self, exprs, dspace, shape, ops, traffic, parent=None):
         super(NodeExprs, self).__init__(parent)
         self.exprs = exprs
+        self.dspace = dspace
         self.shape = shape
         self.ops = ops
         self.traffic = traffic
