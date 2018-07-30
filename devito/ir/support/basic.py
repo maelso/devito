@@ -284,9 +284,15 @@ class IterationInstance(Vector):
     def is_scalar(self):
         return self.rank == 0
 
+    def affine(self, findices):
+        """Return True if all of the provided findices appear in self and are
+        affine, False otherwise."""
+        return set(as_tuple(findices)).issubset(set(self.findices_affine))
+
     def affine_if_present(self, findices):
         """Return False if any of the provided findices appears in self and
         is not affine, True otherwise."""
+        findices = as_tuple(findices)
         return (set(findices) & set(self.findices)).issubset(set(self.findices_affine))
 
     def distance(self, other, findex=None, view=None):
@@ -536,6 +542,10 @@ class Dependence(object):
     @property
     def is_increment(self):
         return self.source.is_increment and self.sink.is_increment
+
+    @property
+    def is_irregular(self):
+        return not self.is_regular
 
     def is_carried(self, dim=None):
         """Return True if definitely a dimension-carried dependence,

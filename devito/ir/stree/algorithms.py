@@ -51,7 +51,8 @@ def st_schedule(clusters):
 
         # The reused sub-trees might acquire some new sub-iterators
         for i in pointers[:index]:
-            mapper[i].ispace = IterationSpace.merge(mapper[i].ispace, c.ispace)
+            mapper[i].ispace = IterationSpace.merge(mapper[i].ispace,
+                                                    c.ispace.project([i.dim]))
         # Later sub-trees, instead, will not be used anymore
         for i in pointers[index:]:
             mapper.pop(i)

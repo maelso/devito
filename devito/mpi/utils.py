@@ -60,43 +60,52 @@ def derive_halo_scheme(ispace, dspace, scope):
     :param scope: A :class:`Scope` describing the data dependence pattern
                   within ``ispace``.
     """
-    mapper = {}
+    # 1) Sanity checks -- is it actually possible/meaningful to derive a halo scheme?
     for d in ispace.dimensions:
         for dep in scope.d_all:
             f = dep.function
             if not f.is_TensorFunction:
                 continue
-            if f.grid is None:
+            elif f.grid is None:
                 raise HaloSchemeException("`%s` requires a `Grid`" % f.name)
-            v = mapper.setdefault(f, {})
-            if f.grid.is_distributed(d):
+            elif f.grid.is_distributed(d):
                 if dep.is_regular:
                     if d in dep.cause:
-                        # `d` is the cause of the dependency, but this situation
-                        # is semantically meaningless as decomposed dimensions should
-                        # never appear in sequential iteration spaces
                         raise HaloSchemeException("`%s` is distributed, but is also used "
                                                   "in a sequential iteration space" % d)
-                    else:
-                        v.setdefault(d, []).append(STENCIL)
                 else:
                     raise HaloSchemeException("`%s` is distributed, so it cannot be used "
                                               "to define irregular iteration space" % d)
-            elif d in dep.cause:
-                # A purely sequential dimension
-                v.setdefault(d, []).append(NONE)
-            elif dep.is_increment:
-                # A local distributed reduction. Users are expected to explicitly
-                # deal with this by themselves (e.g., via redundant computation)
-                v.setdefault(d, []).append(UNSUPPORTED)
-            else:
-                # We need to find out along what data dimensions `d` appears
-                # so that, conservatively, we can exchange all these halos
-                for i, j in zip(dep.aindices, dep.findices):
-                    if f.grid.is_distributed(j) and {None, d} & i:
-                        v.setdefault(j, []).append(FULL)
+            elif not (dep.is_carried(d) or dep.is_increment):
+                raise HaloSchemeException("Cannot derive a halo scheme due to the "
+                                          "irregular data dependence `%s`" % dep)
 
+    # 2) Find out what functions/dimensions need a halo exchange
+    mapper = {}
+    for d in ispace.dimensions:
+        for f, r in scope.reads.items():
+            if not f.is_TensorFunction or f.grid is None:
+                continue
+            v = mapper.setdefault(f, {})
+            for i in r:
+                if i.affine(d):
+                    if f.grid.is_distributed(d):
+                        v.setdefault(d, []).append(STENCIL)
+                    else:
+                        v.setdefault(d, []).append(NONE)
+                elif i.is_increment:
+                    # A read used for a distributed local-reduction. Users are expected
+                    # to deal with this data access pattern by themselves, for example
+                    # by resorting to common techniques such as redundant computation
+                    v.setdefault(d, []).append(UNSUPPORTED)
+                elif i.is_irregular:
+                    # We need to find out what data dimensions `d` appears in
+                    # so that, conservatively, we can exchange all these halos
+                    for ai, fi in zip(i.aindices, i.findices):
+                        if f.grid.is_distributed(fi) and ({None, d} & {ai}):
+                            v.setdefault(fi, []).append(FULL)
     from IPython import embed; embed()
+
     #if configuration['mpi']:
     #    warning("Local distributed reductions over `%s` detected.")
     #    continue
