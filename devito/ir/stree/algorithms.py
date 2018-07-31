@@ -5,7 +5,7 @@ from anytree import findall
 from devito.ir.stree.tree import (ScheduleTree, NodeIteration, NodeConditional,
                                   NodeExprs, NodeSection, NodeHalo, insert)
 from devito.ir.support import IterationSpace
-from devito.mpi import HaloSchemeException, hs_build
+from devito.mpi import HaloScheme, HaloSchemeException
 from devito.parameters import configuration
 from devito.tools import flatten
 
@@ -78,37 +78,25 @@ def st_schedule(clusters):
 def st_make_halo(stree):
     """
     Add :class:`NodeHalo`s to a :class:`ScheduleTree`. A HaloNode captures
-    the halo exchanges that should take place before executing the sub-tree.
+    the halo exchanges that should take place before executing the sub-tree;
+    these are described by means of a :class:`HaloScheme`.
     """
-    # First pass: collect halo exchange information at each Iteration site
-    hss = {}
-    for n in findall(stree, lambda i: i.is_Exprs):
-        hss[n] = hs_build(n.exprs, n.ispace, n.dspace)
+    # Build a HaloScheme for each expression bundle
+    halo_schemes = {n: HaloScheme(n.exprs, n.ispace, n.dspace)
+                    for n in findall(stree, lambda i: i.is_Exprs)}
 
-#    processed = {}
-#    for n in LevelOrderIter(stree, stop=lambda i: i.parent in processed):
-#        if not n.is_Iteration:
-#            continue
-#        exprs = flatten(i.exprs for i in findall(n, lambda i: i.is_Exprs))
-#        try:
-#            halo_scheme = HaloScheme(exprs)
-#            if n.dim in halo_scheme.dmapper:
-#                processed[n] = NodeHalo(halo_scheme)
-#        except HaloSchemeException:
-#            # We should get here only when trying to compute a halo
-#            # scheme for a group of expressions that belong to different
-#            # iteration spaces. We expect proper halo schemes to be built
-#            # as the `stree` visit proceeds.
-#            # TODO: However, at the end, we should check that a halo scheme,
-#            # possibly even a "void" one, has been built for *all* of the
-#            # expressions, and error out otherwise.
-#            continue
-#        except RuntimeError as e:
-#            if configuration['mpi'] is True:
-#                raise RuntimeError(str(e))
-#
-#    for k, v in processed.items():
-#        insert(v, k.parent, [k])
+    # Insert the HaloScheme at a suitable level in the ScheduleTree
+    for k, hs in halo_schemes.items():
+        for f, v in hs.fmapper.items():
+            spot = k
+            ancestors = [n for n in k.ancestors if n.is_Iteration]
+            for n in ancestors:
+                test0 = any(n.dim is i.dim for i in v.halos)
+                test1 = n.dim not in [i.root for i in v.loc_indices]
+                if test0 or test1:
+                    spot = n
+                    break
+            insert(NodeHalo(hs), spot.parent, [spot])
 
     return stree
 

@@ -450,4 +450,4 @@ class TestIsotropicAcoustic(object):
 
 if __name__ == "__main__":
     configuration['mpi'] = True
-    TestOperatorSimple().test_multiple_loop_nests()
+    TestOperatorSimple().test_trivial_eq_2d()
