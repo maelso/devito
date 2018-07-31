@@ -641,6 +641,11 @@ class DependenceGroup(list):
         assert isinstance(other, DependenceGroup)
         return DependenceGroup([i for i in self if i not in other])
 
+    def project(self, functions):
+        """Return a new DependenceGroup retaining only the dependences due to
+        the provided functions."""
+        return DependenceGroup(i for i in self if i.function in as_tuple(functions))
+
 
 class Scope(object):
 

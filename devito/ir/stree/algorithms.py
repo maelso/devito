@@ -5,7 +5,7 @@ from anytree import LevelOrderIter, findall
 from devito.ir.stree.tree import (ScheduleTree, NodeIteration, NodeConditional,
                                   NodeExprs, NodeSection, NodeHalo, insert)
 from devito.ir.support import IterationSpace, Scope
-from devito.mpi import HaloScheme, HaloSchemeException, derive_halo_scheme
+from devito.mpi import HaloSchemeException, hs_build
 from devito.parameters import configuration
 from devito.tools import flatten
 
@@ -81,40 +81,39 @@ def st_make_halo(stree):
     the halo exchanges that should take place before executing the sub-tree.
     """
     # First pass: collect halo exchange information at each Iteration site
-    halo_schemes = {}
+    hss = {}
     for n in findall(stree, lambda i: i.is_Exprs):
         scope = Scope(n.exprs)
         for a in reversed(n.ancestors):
             if a.is_Iteration:
-                halo_scheme = derive_halo_scheme(a.ispace, n.dspace, scope)
-                halo_schemes.setdefault(a, []).append(halo_scheme)
+                hss.setdefault(a, []).append(hs_build(a.ispace, n.dspace, scope))
         
 
 
-    processed = {}
-    for n in LevelOrderIter(stree, stop=lambda i: i.parent in processed):
-        if not n.is_Iteration:
-            continue
-        exprs = flatten(i.exprs for i in findall(n, lambda i: i.is_Exprs))
-        try:
-            halo_scheme = HaloScheme(exprs)
-            if n.dim in halo_scheme.dmapper:
-                processed[n] = NodeHalo(halo_scheme)
-        except HaloSchemeException:
-            # We should get here only when trying to compute a halo
-            # scheme for a group of expressions that belong to different
-            # iteration spaces. We expect proper halo schemes to be built
-            # as the `stree` visit proceeds.
-            # TODO: However, at the end, we should check that a halo scheme,
-            # possibly even a "void" one, has been built for *all* of the
-            # expressions, and error out otherwise.
-            continue
-        except RuntimeError as e:
-            if configuration['mpi'] is True:
-                raise RuntimeError(str(e))
-
-    for k, v in processed.items():
-        insert(v, k.parent, [k])
+#    processed = {}
+#    for n in LevelOrderIter(stree, stop=lambda i: i.parent in processed):
+#        if not n.is_Iteration:
+#            continue
+#        exprs = flatten(i.exprs for i in findall(n, lambda i: i.is_Exprs))
+#        try:
+#            halo_scheme = HaloScheme(exprs)
+#            if n.dim in halo_scheme.dmapper:
+#                processed[n] = NodeHalo(halo_scheme)
+#        except HaloSchemeException:
+#            # We should get here only when trying to compute a halo
+#            # scheme for a group of expressions that belong to different
+#            # iteration spaces. We expect proper halo schemes to be built
+#            # as the `stree` visit proceeds.
+#            # TODO: However, at the end, we should check that a halo scheme,
+#            # possibly even a "void" one, has been built for *all* of the
+#            # expressions, and error out otherwise.
+#            continue
+#        except RuntimeError as e:
+#            if configuration['mpi'] is True:
+#                raise RuntimeError(str(e))
+#
+#    for k, v in processed.items():
+#        insert(v, k.parent, [k])
 
     return stree
 
