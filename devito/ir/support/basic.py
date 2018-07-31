@@ -273,16 +273,9 @@ class IterationInstance(Vector):
         return tuple(fi for fi, im in zip(self.findices, self.index_mode) if im == AFFINE)
 
     @property
-    def is_regular(self):
-        return all(i in (CONSTANT, AFFINE) for i in self.index_mode)
-
-    @property
-    def is_irregular(self):
-        return not self.is_regular
-
-    @property
-    def is_scalar(self):
-        return self.rank == 0
+    def findices_irregular(self):
+        return tuple(fi for fi, im in zip(self.findices, self.index_mode)
+                     if im == IRREGULAR)
 
     def affine(self, findices):
         """Return True if all of the provided findices appear in self and are
@@ -294,6 +287,23 @@ class IterationInstance(Vector):
         is not affine, True otherwise."""
         findices = as_tuple(findices)
         return (set(findices) & set(self.findices)).issubset(set(self.findices_affine))
+
+    def irregular(self, findices):
+        """Return True if all of the provided findices appear in self and are
+        irregular, False otherwise."""
+        return set(as_tuple(findices)).issubset(set(self.findices_irregular))
+
+    @property
+    def is_regular(self):
+        return all(i in (CONSTANT, AFFINE) for i in self.index_mode)
+
+    @property
+    def is_irregular(self):
+        return not self.is_regular
+
+    @property
+    def is_scalar(self):
+        return self.rank == 0
 
     def distance(self, other, findex=None, view=None):
         """Compute the distance from ``self`` to ``other``.
@@ -641,10 +651,10 @@ class DependenceGroup(list):
         assert isinstance(other, DependenceGroup)
         return DependenceGroup([i for i in self if i not in other])
 
-    def project(self, functions):
+    def project(self, function):
         """Return a new DependenceGroup retaining only the dependences due to
-        the provided functions."""
-        return DependenceGroup(i for i in self if i.function in as_tuple(functions))
+        the provided function."""
+        return DependenceGroup(i for i in self if i.function is function)
 
 
 class Scope(object):

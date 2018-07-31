@@ -3,7 +3,7 @@ from itertools import product
 
 from cached_property import cached_property
 
-from devito.ir.support import Forward
+from devito.ir.support import Forward, Scope
 from devito.logger import warning
 from devito.parameters import configuration
 from devito.types import LEFT, RIGHT
@@ -36,7 +36,7 @@ class HaloScheme(object):
     ``fixed`` tells how to access/insert the halo along the Dimensions
     where no halo exchange is performed. For example, consider the
     :class:`Function` ``u(t, x, y)``. Assume ``x`` and ``y`` require a halo
-    exchange. A question is: once the halo exchange is performed, at what
+    exchange. The question is: once the halo exchange is performed, at what
     offset in ``t`` should it be placed? should it be at ``u(0, ...)`` or
     ``u(1, ...)`` or even ``u(t-1, ...)``? The ``fixed`` mapper provides
     this information.
@@ -91,58 +91,47 @@ class HaloSchemeException(Exception):
     pass
 
 
-def hs_build(ispace, dspace, scope):
+def hs_build(exprs, ispace, dspace):
     """
-    Derive a halo exchange scheme describing, for given iteration and
-    data spaces:
+    Build a :class:`HaloScheme` for the :class:`TensorFunctions` in an
+    iterable of expressions.
 
-        * what :class:`Function`s may require a halo update before executing
-          the iteration space,
-        * and what values of such :class:`Function`s should actually be exchanged
-
-    :param ispace: A :class:`IterationSpace` for which a halo scheme is built.
+    :param exprs: The :class:`IREq`s for which the HaloScheme is built.
+    :param ispace: A :class:`IterationSpace` describing the iteration
+                   directions and the sub-iterators used within ``scope``.
     :param dspace: A :class:`DataSpace` describing the data access pattern
-                   within ``ispace``.
-    :param scope: A :class:`Scope` describing the data dependence pattern
-                  within ``ispace``.
+                   within ``scope``.
     """
-    hs_preprocess(ispace, scope)
-    mapper = hs_classify(ispace, scope)
-    hs = hs_compute(mapper, ispace, dspace, scope)
+    scope = Scope(exprs)
+
+    hs_preprocess(scope)
+    mapper = hs_classify(scope)
+    hs = hs_compute(mapper, scope, ispace, dspace)
 
     return hs
 
 
-def hs_preprocess(ispace, scope):
+def hs_preprocess(scope):
     """
     Perform some sanity checks to verify that it's actually possible/meaningful
-    to derive a halo scheme for the given :class:`IterationSpace` and :class:`Scope`.
+    to derive a halo scheme for the given :class:`Scope`.
     """
-    for d in ispace.dimensions:
-        for i in scope.d_all:
-            f = i.function
-            if not f.is_TensorFunction:
-                continue
-            elif f.grid is None:
-                raise HaloSchemeException("`%s` requires a `Grid`" % f.name)
-            elif f.grid.is_distributed(d):
-                if i.is_regular:
-                    if d in i.cause:
-                        raise HaloSchemeException("`%s` is distributed, but is also used "
-                                                  "in a sequential iteration space" % d)
-                else:
-                    raise HaloSchemeException("`%s` is distributed, so it cannot be used "
-                                              "to define irregular iteration space" % d)
-            elif not (i.is_carried(d) or i.is_increment):
-                raise HaloSchemeException("Cannot derive a halo scheme due to the "
-                                          "irregular data dependence `%s`" % i)
+    for i in scope.d_all:
+        f = i.function
+        if not f.is_TensorFunction:
+            continue
+        elif f.grid is None:
+            raise HaloSchemeException("`%s` requires a `Grid`" % f.name)
+        elif i.is_regular and any(f.grid.is_distributed(d) for d in i.cause):
+            raise HaloSchemeException("`%s` is distributed, but is also used "
+                                      "in a sequential iteration space" % i.cause)
 
 
-def hs_classify(ispace, scope):
+def hs_classify(scope):
     """
     Return a mapper ``Function -> (Dimension -> [HaloLabel]`` describing what
     type of halo exchange is expected by the various :class:`TensorFunction`s
-    within a :class:`Scope` before executing an :class:`IterationSpace`.
+    in a :class:`Scope`.
 
     .. note::
 
@@ -150,12 +139,12 @@ def hs_classify(ispace, scope):
         :func:`hs_preprocess`.
     """
     mapper = {}
-    for d in ispace.dimensions:
-        for f, r in scope.reads.items():
-            if not f.is_TensorFunction or f.grid is None:
-                continue
-            v = mapper.setdefault(f, {})
-            for i in r:
+    for f, r in scope.reads.items():
+        if not f.is_TensorFunction or f.grid is None:
+            continue
+        v = mapper.setdefault(f, {})
+        for i in r:
+            for d in i.findices:
                 if i.affine(d):
                     if f.grid.is_distributed(d):
                         v.setdefault(d, []).append(STENCIL)
@@ -166,12 +155,8 @@ def hs_classify(ispace, scope):
                     # to deal with this data access pattern by themselves, for example
                     # by resorting to common techniques such as redundant computation
                     v.setdefault(d, []).append(UNSUPPORTED)
-                elif i.is_irregular:
-                    # We need to find out what data dimensions `d` appears in
-                    # so that, conservatively, we can exchange all these halos
-                    for ai, fi in zip(i.aindices, i.findices):
-                        if f.grid.is_distributed(fi) and ({None, d} & {ai}):
-                            v.setdefault(fi, []).append(FULL)
+                elif i.irregular(d) and f.grid.is_distributed(d):
+                    v.setdefault(d, []).append(FULL)
 
     # Sanity check and reductions
     for f, v in mapper.items():
@@ -189,7 +174,7 @@ def hs_classify(ispace, scope):
     return mapper
 
 
-def hs_compute(mapper, ispace, dspace, scope):
+def hs_compute(mapper, scope, ispace, dspace):
     """
     Compute a halo scheme from a mapper as returned by :func:`hs_classify`,
     using the iteration space information carried by a :class:`IterationSpace`,
@@ -199,8 +184,8 @@ def hs_compute(mapper, ispace, dspace, scope):
     hs = HaloScheme()
     for f, v in mapper.items():
         for d, hl in v.items():
-            lower, upper = dspace[f][d.root].limits
             if hl is STENCIL:
+                lower, upper = dspace[f][d.root].limits
                 # Calculate what section of the halo region is needed, based on
                 # the halo extent size and the stencil radius
                 lsize = f._offset_domain[d].left - lower
@@ -209,10 +194,18 @@ def hs_compute(mapper, ispace, dspace, scope):
                 rsize = upper - f._offset_domain[d].right
                 if rsize > 0:
                     hs.add_halo_exchange(f, (d, RIGHT, rsize))
+            elif hl is FULL:
+                lsize = f._extent_halo[d].left
+                if lsize > 0:
+                    hs.add_halo_exchange(f, (d, LEFT, lsize))
+                rsize = f._extent_halo[d].right
+                if rsize > 0:
+                    hs.add_halo_exchange(f, (d, RIGHT, rsize))
             elif hl is NONE:
+                lower, upper = dspace[f][d.root].limits
                 # There is no halo exchange along `d`, but we still need
                 # to determine at what offset the halo will have be slotted in
-                shift = int(any(d in i.cause for i in scope.project(f)))
+                shift = int(any(d in i.cause for i in scope.d_all.project(f)))
                 # Examples:
                 # 1) u[t+1, x] = f(u[t, x])   => shift == 1
                 # 2) u[t-1, x] = f(u[t, x])   => shift == 1
@@ -229,7 +222,7 @@ def hs_compute(mapper, ispace, dspace, scope):
                     subiters = ispace.sub_iterators.get(d.root, [])
                     submap = as_mapper(subiters, lambda md: md.modulo)
                     submap = {i.origin: i for i in submap[f._time_size]}
-                    hs.add_fixed_access(f, d, d + submap[d + last])
+                    hs.add_fixed_access(f, d, submap[d + last])
                 else:
                     hs.add_fixed_access(f, d, d.root + last)
     from IPython import embed; embed()

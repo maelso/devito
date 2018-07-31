@@ -1,10 +1,10 @@
 from collections import OrderedDict
 
-from anytree import LevelOrderIter, findall
+from anytree import findall
 
 from devito.ir.stree.tree import (ScheduleTree, NodeIteration, NodeConditional,
                                   NodeExprs, NodeSection, NodeHalo, insert)
-from devito.ir.support import IterationSpace, Scope
+from devito.ir.support import IterationSpace
 from devito.mpi import HaloSchemeException, hs_build
 from devito.parameters import configuration
 from devito.tools import flatten
@@ -63,7 +63,7 @@ def st_schedule(clusters):
             mapper[i] = root
 
         # Add in Expressions
-        NodeExprs(c.exprs, c.dspace, c.shape, c.ops, c.traffic, root)
+        NodeExprs(c.exprs, c.ispace, c.dspace, c.shape, c.ops, c.traffic, root)
 
         # Add in Conditionals
         for k, v in mapper.items():
@@ -83,12 +83,7 @@ def st_make_halo(stree):
     # First pass: collect halo exchange information at each Iteration site
     hss = {}
     for n in findall(stree, lambda i: i.is_Exprs):
-        scope = Scope(n.exprs)
-        for a in reversed(n.ancestors):
-            if a.is_Iteration:
-                hss.setdefault(a, []).append(hs_build(a.ispace, n.dspace, scope))
-        
-
+        hss[n] = hs_build(n.exprs, n.ispace, n.dspace)
 
 #    processed = {}
 #    for n in LevelOrderIter(stree, stop=lambda i: i.parent in processed):
