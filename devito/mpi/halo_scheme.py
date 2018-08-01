@@ -2,6 +2,7 @@ from collections import OrderedDict, namedtuple
 from itertools import product
 
 from cached_property import cached_property
+from frozendict import frozendict
 
 from devito.ir.support import Forward, Scope
 from devito.logger import warning
@@ -84,7 +85,7 @@ class HaloScheme(object):
                                              ispace, dspace, scope)
 
             if halos:
-                self._mapper[f] = HaloSchemeEntry(loc_indices, tuple(halos))
+                self._mapper[f] = HaloSchemeEntry(frozendict(loc_indices), tuple(halos))
 
     def __repr__(self):
         fnames = ",".join(i.name for i in set(self._mapper))
