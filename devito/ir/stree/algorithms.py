@@ -5,8 +5,7 @@ from anytree import findall
 from devito.ir.stree.tree import (ScheduleTree, NodeIteration, NodeConditional,
                                   NodeExprs, NodeSection, NodeHalo, insert)
 from devito.ir.support import IterationSpace
-from devito.mpi import HaloScheme, HaloSchemeException
-from devito.parameters import configuration
+from devito.mpi import HaloScheme
 from devito.tools import flatten
 
 __all__ = ['st_build']
