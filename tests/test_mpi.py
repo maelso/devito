@@ -6,7 +6,7 @@ from conftest import skipif_yask
 
 from devito import Grid, Function, TimeFunction, Dimension, Eq, Inc, Operator
 from devito.ir.iet import Call, FindNodes
-from devito.mpi import HaloSchemeException, copy, sendrecv, update_halo
+from devito.mpi import copy, sendrecv, update_halo
 from devito.parameters import configuration
 from devito.types import LEFT, RIGHT
 
@@ -425,8 +425,6 @@ class TestOperatorSimple(object):
 
     def test_no_stencil_implies_no_halo_update(self):
         grid = Grid(shape=(12,))
-        x = grid.dimensions[0]
-        t = grid.stepping_dim
 
         f = TimeFunction(name='f', grid=grid)
         g = Function(name='g', grid=grid)
