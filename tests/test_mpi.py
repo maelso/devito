@@ -435,7 +435,7 @@ class TestOperatorSimple(object):
             Operator([Eq(f.forward, f[t, x-1] + f + 1),
                       Eq(f.forward, f[t+1, x-1] + f.forward)])
             assert False
-        except HaloSchemeException:
+        except RuntimeError:
             assert True
         except:
             assert False

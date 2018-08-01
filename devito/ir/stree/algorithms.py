@@ -5,7 +5,8 @@ from anytree import findall
 from devito.ir.stree.tree import (ScheduleTree, NodeIteration, NodeConditional,
                                   NodeExprs, NodeSection, NodeHalo, insert)
 from devito.ir.support import IterationSpace
-from devito.mpi import HaloScheme
+from devito.mpi import HaloScheme, HaloSchemeException
+from devito.parameters import configuration
 from devito.tools import flatten
 
 __all__ = ['st_build']
@@ -81,8 +82,13 @@ def st_make_halo(stree):
     these are described by means of a :class:`HaloScheme`.
     """
     # Build a HaloScheme for each expression bundle
-    halo_schemes = {n: HaloScheme(n.exprs, n.ispace, n.dspace)
-                    for n in findall(stree, lambda i: i.is_Exprs)}
+    halo_schemes = {}
+    for n in findall(stree, lambda i: i.is_Exprs):
+        try:
+            halo_schemes[n] = HaloScheme(n.exprs, n.ispace, n.dspace)
+        except HaloSchemeException as e:
+            if configuration['mpi']:
+                raise RuntimeError(str(e))
 
     # Insert the HaloScheme at a suitable level in the ScheduleTree
     mapper = {}

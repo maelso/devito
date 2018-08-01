@@ -195,7 +195,8 @@ def hs_comp_halos(f, dims, dspace=None):
         else:
             # We can limit the amount of halo exchanged based on the stencil
             # radius, which is dictated by `dspace`
-            lower, upper = dspace[f][d.root].limits
+            v = dspace[f][d.root]
+            lower, upper = v.limits if not v.is_Null else (0, 0)
             lsize = f._offset_domain[d].left - lower
             rsize = upper - f._offset_domain[d].right
         if lsize > 0:
@@ -230,7 +231,11 @@ def hs_comp_locindices(f, dims, ispace, dspace, scope):
             subiters = ispace.sub_iterators.get(d.root, [])
             submap = as_mapper(subiters, lambda md: md.modulo)
             submap = {i.origin: i for i in submap[f._time_size]}
-            loc_indices[d] = submap[d + last]
+            try:
+                loc_indices[d] = submap[d + last]
+            except KeyError:
+                raise HaloSchemeException("Don't know how to build a HaloScheme as the "
+                                          "stepping index `%s` is undefined" % (d + last))
         else:
             loc_indices[d] = d.root + last
     return loc_indices
