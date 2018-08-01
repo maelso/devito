@@ -41,7 +41,7 @@ class HaloScheme(object):
 
     Where ``HaloSchemeEntry`` is a (named) 2-tuple: ::
 
-        ({loc_indicesr, ((Dimension, DataSide, amount), ...))
+        ({loc_indices, ((Dimension, DataSide, amount), ...))
 
     The tuples (Dimension, DataSide, amount) tell the amount of data that
     a :class:`TensorFunction` should communicate along (a subset of) its
@@ -62,9 +62,18 @@ class HaloScheme(object):
                    directions and the sub-iterators used by the ``exprs``.
     :param dspace: A :class:`DataSpace` describing the ``exprs`` data
                    access pattern.
+    :param fmapper: (Optional) Alternatively, a HaloScheme can be built from a
+                   set of known HaloSchemeEntry. If ``fmapper`` is provided,
+                   then ``exprs``, ``ispace``, and ``dspace`` are ignored.
+                   ``fmapper`` is a dictionary having same format as ``M``, the
+                   HaloScheme mapper defined at the top of this docstring.
     """
 
-    def __init__(self, exprs, ispace, dspace):
+    def __init__(self, exprs=None, ispace=None, dspace=None, fmapper=None):
+        if fmapper is not None:
+            self._mapper = fmapper.copy()
+            return
+
         self._mapper = {}
 
         scope = Scope(exprs)

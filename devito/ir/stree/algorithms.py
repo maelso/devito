@@ -86,6 +86,7 @@ def st_make_halo(stree):
                     for n in findall(stree, lambda i: i.is_Exprs)}
 
     # Insert the HaloScheme at a suitable level in the ScheduleTree
+    mapper = {}
     for k, hs in halo_schemes.items():
         for f, v in hs.fmapper.items():
             spot = k
@@ -96,7 +97,9 @@ def st_make_halo(stree):
                 if test0 or test1:
                     spot = n
                     break
-            insert(NodeHalo(hs), spot.parent, [spot])
+            mapper.setdefault(spot, []).append((f, v))
+    for spot, entries in mapper.items():
+        insert(NodeHalo(HaloScheme(fmapper=dict(entries))), spot.parent, [spot])
 
     return stree
 

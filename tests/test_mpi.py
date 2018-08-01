@@ -5,7 +5,8 @@ import pytest
 from conftest import skipif_yask
 
 from devito import Grid, Function, TimeFunction, Eq, Operator
-from devito.mpi import copy, sendrecv, update_halo
+from devito.ir.iet import Call, FindNodes
+from devito.mpi import HaloSchemeException, copy, sendrecv, update_halo
 from devito.parameters import configuration
 from devito.types import LEFT, RIGHT
 
@@ -417,19 +418,27 @@ class TestOperatorSimple(object):
         else:
             assert np.all(f.data_ro_domain[0] == 3.)
 
+        # Also check that there are no redundant halo exchanges. Here, only
+        # two are expected before the `x` Iteration, one for `f` and one for `g`
+        calls = FindNodes(Call).visit(op)
+        assert len(calls) == 2
+
     @pytest.mark.parallel(nprocs=2)
-    def test_multiple_loop_nests(self):
+    def test_illegal_distributed_dimension(self):
         grid = Grid(shape=(12,))
         x = grid.dimensions[0]
         t = grid.stepping_dim
 
         f = TimeFunction(name='f', grid=grid)
-        f.data_with_halo[:] = 1.
 
-        op = Operator([Eq(f.forward, f[t, x-1] + f + 1),
-                       Eq(f.forward, f[t+1, x-1] + f.forward)])
-        op.apply(time=1)
-        from IPython import embed; embed()
+        try:
+            op = Operator([Eq(f.forward, f[t, x-1] + f + 1),
+                           Eq(f.forward, f[t+1, x-1] + f.forward)])
+            assert False
+        except HaloSchemeException:
+            assert True
+        except:
+            assert False
 
 
 class TestIsotropicAcoustic(object):
@@ -450,4 +459,4 @@ class TestIsotropicAcoustic(object):
 
 if __name__ == "__main__":
     configuration['mpi'] = True
-    TestOperatorSimple().test_trivial_eq_2d()
+    TestOperatorSimple().test_multiple_eqs_funcs()
