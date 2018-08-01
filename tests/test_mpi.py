@@ -4,7 +4,7 @@ from mpi4py import MPI
 import pytest
 from conftest import skipif_yask
 
-from devito import Grid, Function, TimeFunction, Eq, Operator
+from devito import Grid, Function, TimeFunction, Dimension, Eq, Inc, Operator
 from devito.ir.iet import Call, FindNodes
 from devito.mpi import HaloSchemeException, copy, sendrecv, update_halo
 from devito.parameters import configuration
@@ -423,6 +423,39 @@ class TestOperatorSimple(object):
         calls = FindNodes(Call).visit(op)
         assert len(calls) == 2
 
+    def test_no_stencil_implies_no_halo_update(self):
+        grid = Grid(shape=(12,))
+        x = grid.dimensions[0]
+        t = grid.stepping_dim
+
+        f = TimeFunction(name='f', grid=grid)
+        g = Function(name='g', grid=grid)
+
+        op = Operator([Eq(f.forward, f + 1.),
+                       Eq(g, f + 1.)])
+
+        calls = FindNodes(Call).visit(op)
+        assert len(calls) == 0
+
+    @pytest.mark.xfail
+    def test_no_redundant_halo_update(self):
+        grid = Grid(shape=(12,))
+        x = grid.dimensions[0]
+        t = grid.stepping_dim
+
+        i = Dimension(name='i')
+        j = Dimension(name='j')
+
+        f = TimeFunction(name='f', grid=grid)
+        g = Function(name='g', grid=grid)
+
+        op = Operator([Eq(f.forward, f[t, x-1] + f[t, x+1] + 1.),
+                       Inc(f[t+1, i], f[t+1, i] + 1.),  # no halo update as it's an Inc
+                       Eq(g, f[t, j] + 1)])  # access `f` at `t`, not `t+1`!
+
+        calls = FindNodes(Call).visit(op)
+        assert len(calls) == 1
+
     @pytest.mark.parallel(nprocs=2)
     def test_illegal_distributed_dimension(self):
         grid = Grid(shape=(12,))
@@ -464,4 +497,4 @@ class TestIsotropicAcoustic(object):
 
 if __name__ == "__main__":
     configuration['mpi'] = True
-    TestOperatorSimple().test_multiple_eqs_funcs()
+    TestOperatorSimple().test_no_redundant_halo_update()
