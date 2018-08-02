@@ -357,6 +357,27 @@ class TestOperatorSimple(object):
         else:
             assert np.all(f.data_ro_domain[0] == 7.)
 
+    @pytest.mark.parallel(nprocs=2)
+    def test_trivial_eq_1d_save(self):
+        grid = Grid(shape=(32,))
+        x = grid.dimensions[0]
+        time = grid.time_dim
+
+        f = TimeFunction(name='f', grid=grid, save=5)
+        f.data_with_halo[:] = 1.
+
+        op = Operator(Eq(f.forward, f[time, x-1] + f[time, x+1] + 1))
+        op.apply()
+
+        time_M = op.prepare_arguments()['time_M']
+
+        assert np.all(f.data_ro_domain[1] == 3.)
+        glb_pos_map = f.grid.distributor.glb_pos_map
+        if LEFT in glb_pos_map[x]:
+            assert np.all(f.data_ro_domain[-1, time_M:] == 31.)
+        else:
+            assert np.all(f.data_ro_domain[-1, :-time_M] == 31.)
+
     @pytest.mark.parallel(nprocs=4)
     def test_trivial_eq_2d(self):
         grid = Grid(shape=(8, 8,))
@@ -514,4 +535,4 @@ class TestIsotropicAcoustic(object):
 
 if __name__ == "__main__":
     configuration['mpi'] = True
-    TestOperatorSimple().test_redo_haloupdate_due_to_antidep()
+    TestOperatorSimple().test_trivial_eq_1d_save()

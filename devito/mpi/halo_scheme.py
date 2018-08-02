@@ -4,7 +4,7 @@ from itertools import product
 from cached_property import cached_property
 from frozendict import frozendict
 
-from devito.ir.support import Forward, Scope
+from devito.ir.support import Scope
 from devito.logger import warning
 from devito.parameters import configuration
 from devito.types import LEFT, RIGHT
@@ -203,21 +203,17 @@ def hs_comp_locindices(f, dims, ispace, dspace, scope):
     """
     loc_indices = {}
     for d in dims:
-        lower, upper = dspace[f][d.root].limits
-        shift = int(any(d in i.cause for i in scope.d_all.project(f)))
-        if ispace.directions[d.root] is Forward:
-            last = upper - shift
-        else:
-            last = lower + shift
+        func = max if ispace.is_forward(d.root) else min
+        loc_index = func([i[d] for i in scope.getreads(f)], key=lambda i: i-d)
         if d.is_Stepping:
             subiters = ispace.sub_iterators.get(d.root, [])
             submap = as_mapper(subiters, lambda md: md.modulo)
             submap = {i.origin: i for i in submap[f._time_size]}
             try:
-                loc_indices[d] = submap[d + last]
+                loc_indices[d] = submap[loc_index]
             except KeyError:
                 raise HaloSchemeException("Don't know how to build a HaloScheme as the "
-                                          "stepping index `%s` is undefined" % (d + last))
+                                          "stepping index `%s` is undefined" % loc_index)
         else:
-            loc_indices[d] = d.root + last
+            loc_indices[d] = loc_index
     return loc_indices
