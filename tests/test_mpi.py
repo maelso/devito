@@ -423,7 +423,7 @@ class TestOperatorSimple(object):
         calls = FindNodes(Call).visit(op)
         assert len(calls) == 2
 
-    def test_no_stencil_implies_no_halo_update(self):
+    def test_nostencil_implies_nohaloupdate(self):
         grid = Grid(shape=(12,))
 
         f = TimeFunction(name='f', grid=grid)
@@ -435,8 +435,21 @@ class TestOperatorSimple(object):
         calls = FindNodes(Call).visit(op)
         assert len(calls) == 0
 
+    def test_stencil_nowrite_implies_haloupdate(self):
+        grid = Grid(shape=(12,))
+        x = grid.dimensions[0]
+        t = grid.stepping_dim
+
+        f = TimeFunction(name='f', grid=grid)
+        g = Function(name='g', grid=grid)
+
+        op = Operator(Eq(g, f[t, x-1] + f[t, x+1] + 1.))
+
+        calls = FindNodes(Call).visit(op)
+        assert len(calls) == 1
+
     @pytest.mark.xfail
-    def test_no_redundant_halo_update(self):
+    def test_avoid_redundant_haloupdate(self):
         grid = Grid(shape=(12,))
         x = grid.dimensions[0]
         t = grid.stepping_dim
@@ -495,4 +508,4 @@ class TestIsotropicAcoustic(object):
 
 if __name__ == "__main__":
     configuration['mpi'] = True
-    TestOperatorSimple().test_no_redundant_halo_update()
+    TestOperatorSimple().test_avoid_redundant_haloupdate()
