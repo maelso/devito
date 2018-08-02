@@ -78,9 +78,6 @@ class HaloScheme(object):
 
         scope = Scope(exprs)
 
-        # Can a HaloScheme be built?
-        hs_preprocess(scope)
-
         # *What* halo exchanges do we need?
         classification = hs_classify(scope)
 
@@ -119,36 +116,18 @@ class HaloScheme(object):
         return mapper
 
 
-def hs_preprocess(scope):
-    """
-    Perform some sanity checks to verify that it's actually possible/meaningful
-    to derive a halo scheme for the given :class:`Scope`.
-    """
-    for i in scope.d_all:
-        f = i.function
-        if not f.is_TensorFunction:
-            continue
-        elif f.grid is None:
-            raise HaloSchemeException("`%s` requires a `Grid`" % f.name)
-        elif i.is_regular and any(f.grid.is_distributed(d) for d in i.cause):
-            raise HaloSchemeException("`%s` is distributed, but is also used "
-                                      "in a sequential iteration space" % i.cause)
-
-
 def hs_classify(scope):
     """
     Return a mapper ``Function -> (Dimension -> [HaloLabel]`` describing what
     type of halo exchange is expected by the various :class:`TensorFunction`s
     in a :class:`Scope`.
-
-    .. note::
-
-        This function assumes as invariants all of the properties checked by
-        :func:`hs_preprocess`.
     """
     mapper = {}
     for f, r in scope.reads.items():
-        if not f.is_TensorFunction or f.grid is None:
+        if not f.is_TensorFunction:
+            continue
+        elif f.grid is None:
+            # TODO: improve me
             continue
         v = mapper.setdefault(f, {})
         for i in r:

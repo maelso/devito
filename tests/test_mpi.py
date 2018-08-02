@@ -468,21 +468,27 @@ class TestOperatorSimple(object):
         assert len(calls) == 1
 
     @pytest.mark.parallel(nprocs=2)
-    def test_illegal_distributed_dimension(self):
+    def test_redo_haloupdate_due_to_antidep(self):
         grid = Grid(shape=(12,))
         x = grid.dimensions[0]
         t = grid.stepping_dim
 
         f = TimeFunction(name='f', grid=grid)
+        g = TimeFunction(name='g', grid=grid)
 
-        try:
-            Operator([Eq(f.forward, f[t, x-1] + f + 1),
-                      Eq(f.forward, f[t+1, x-1] + f.forward)])
-            assert False
-        except RuntimeError:
-            assert True
-        except:
-            assert False
+        op = Operator([Eq(f.forward, f[t, x-1] + f[t, x+1] + 1.),
+                       Eq(g.forward, f[t+1, x-1] + f[t+1, x+1] + g)])
+        op.apply(time=0)
+
+        calls = FindNodes(Call).visit(op)
+        assert len(calls) == 2
+
+        assert np.all(f.data_ro_domain[1] == 1.)
+        glb_pos_map = f.grid.distributor.glb_pos_map
+        if LEFT in glb_pos_map[x]:
+            assert np.all(g.data_ro_domain[1, 1:] == 2.)
+        else:
+            assert np.all(g.data_ro_domain[1, :-1] == 2.)
 
 
 class TestIsotropicAcoustic(object):
@@ -508,4 +514,4 @@ class TestIsotropicAcoustic(object):
 
 if __name__ == "__main__":
     configuration['mpi'] = True
-    TestOperatorSimple().test_avoid_redundant_haloupdate()
+    TestOperatorSimple().test_redo_haloupdate_due_to_antidep()
