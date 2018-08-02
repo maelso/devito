@@ -27,6 +27,7 @@ class AdvancedRewriter(BasicRewriter):
 
     def _pipeline(self, state):
         self._avoid_denormals(state)
+        self._avoid_halo_exchanges(state)
         self._loop_blocking(state)
         self._simdize(state)
         if self.params['openmp'] is True:
@@ -46,6 +47,14 @@ class AdvancedRewriter(BasicRewriter):
             perf_adv("Functions using modulo iteration along Dimension `%s` "
                      "may safely allocate a one slot smaller buffer" % i.dim)
         return iet, {}
+
+    @dle_pass
+    def _avoid_halo_exchanges(self, iet, state):
+        """
+        Drop unnecessary halo exchanges, or shuffle them around to improve
+        computation-communication overlap.
+        """
+        from IPython import embed; embed()
 
     @dle_pass
     def _loop_blocking(self, nodes, state):
