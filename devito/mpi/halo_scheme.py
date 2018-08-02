@@ -41,7 +41,7 @@ class HaloScheme(object):
 
     Where ``HaloSchemeEntry`` is a (named) 2-tuple: ::
 
-        ({loc_indices, ((Dimension, DataSide, amount), ...))
+        ({loc_indices}, ((Dimension, DataSide, amount), ...))
 
     The tuples (Dimension, DataSide, amount) tell the amount of data that
     a :class:`TensorFunction` should communicate along (a subset of) its
@@ -99,6 +99,9 @@ class HaloScheme(object):
     def __repr__(self):
         fnames = ",".join(i.name for i in set(self._mapper))
         return "HaloScheme<%s>" % fnames
+
+    def __eq__(self, other):
+        return isinstance(other, HaloScheme) and self.fmapper == other.fmapper
 
     @property
     def fmapper(self):
