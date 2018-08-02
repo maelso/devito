@@ -535,4 +535,4 @@ class TestIsotropicAcoustic(object):
 
 if __name__ == "__main__":
     configuration['mpi'] = True
-    TestOperatorSimple().test_trivial_eq_1d_save()
+    TestOperatorSimple().test_avoid_redundant_haloupdate()
