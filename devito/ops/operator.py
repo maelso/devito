@@ -7,7 +7,7 @@ from devito.operator import Operator
 from devito.symbolics import Literal
 from devito.tools import filter_sorted
 
-from devito.ops import ops_configuration
+# from devito.ops import ops_configuration
 from devito.ops.transformer import create_ops_dat, create_ops_memory_call, opsit
 from devito.ops.types import OpsBlock
 from devito.ops.utils import namespace
@@ -28,7 +28,7 @@ class OperatorOPS(Operator):
     def __init__(self, *args, **kwargs):
         self._ops_kernels = []
         super(OperatorOPS, self).__init__(*args, **kwargs)
-        self._compiler = ops_configuration['compiler'].copy()
+        # self._compiler = ops_configuration['compiler'].copy()
 
     def _specialize_iet(self, iet, **kwargs):
         warning("The OPS backend is still work-in-progress")
@@ -37,8 +37,10 @@ class OperatorOPS(Operator):
 
         # If there is no affine trees, then there is no loop to be optimized using OPS.
         if not affine_trees:
-            return iet
+            self._should_compile_with_ops = False
+            return super()._specialize_iet(iet, **kwargs)
 
+        self._should_compile_with_ops = True
         ops_init = Call(namespace['ops_init'], [0, 0, 2])
         ops_partition = Call(namespace['ops_partition'], Literal('""'))
         ops_exit = Call(namespace['ops_exit'])
@@ -115,9 +117,20 @@ class OperatorOPS(Operator):
         return ''.join(str(kernel) for kernel in self._ops_kernels)
 
     def _compile(self):
-        self._includes.append('%s.h' % self._soname)
-        if self._lib is None:
-            self._compiler.jit_compile(self._soname, str(self.ccode), str(self.hcode))
+        if self._should_compile_with_ops:
+            # The following used by backends.backendSelector
+            from devito.parameters import Parameters, add_sub_configuration
+            from devito.ops.compiler import CompilerOPS # noqa
+
+            ops_configuration = Parameters('ops')
+            ops_configuration.add('compiler', CompilerOPS())
+            add_sub_configuration(ops_configuration)
+            self._compiler = ops_configuration['compiler'].copy()
+            self._includes.append('%s.h' % self._soname)
+            if self._lib is None:
+                self._compiler.jit_compile(self._soname, str(self.ccode), str(self.hcode))
+        else:
+            super()._compile()
 
     @cached_property
     def time_dimension(self):

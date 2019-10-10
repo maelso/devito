@@ -363,6 +363,7 @@ class Operator(Callable):
 
         # Sanity check
         for p in self.parameters:
+            # from IPython import embed; embed()
             p._arg_check(args, self._dspace[p])
         for d in self.dimensions:
             if d.is_Derived:
