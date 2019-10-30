@@ -142,15 +142,14 @@ class TestOPSExpression(object):
     @pytest.mark.parametrize('equation,expected', [
         ('Eq(u.forward, u + 1)',
          '[\'ops_dat u_dat[2] = {ops_decl_dat(block, 1, u_dim, u_base, u_d_m, u_d_p, '
-         '&(u[0]), "float", "ut0"), ops_decl_dat(block, 1, u_dim, u_base, u_d_m, u_d_p, '
-         '&(u[1]), "float", "ut1")}\']'),
+         '&(u[0][0][0]), "float", "ut0"), ops_decl_dat(block, 1, u_dim, u_base, u_d_m, u_d_p, ' # noqa
+         '&(u[1][0][0]), "float", "ut1")}\']'),
         ('Eq(u.forward, u + v.dx)',
          '[\'ops_dat u_dat[2] = {ops_decl_dat(block, 1, u_dim, u_base, u_d_m, u_d_p, '
-         '&(u[0]), "float", "ut0"), ops_decl_dat(block, 1, u_dim, u_base, u_d_m, u_d_p, '
-         '&(u[1]), "float", "ut1")}\','
-         '\'ops_dat v_dat;\','
-         '\'v_dat = ops_decl_dat(block, 1, v_dim, v_base, v_d_m, v_d_p, '
-         '&(v[0]), "float", "v")\']')
+         '&(u[0][0][0]), "float", "ut0"), ops_decl_dat(block, 1, u_dim, u_base, u_d_m, u_d_p, ' # noqa
+         '&(u[1][0][0]), "float", "ut1")}\','
+         '\'ops_dat v_dat = ops_decl_dat(block, 1, v_dim, v_base, v_d_m, v_d_p, '
+         '&(v[0][0]), "float", "v")\']')
     ])
     def test_create_ops_dat(self, equation, expected):
         grid = Grid(shape=(4, 4))
@@ -263,7 +262,8 @@ class TestOPSExpression(object):
     @pytest.mark.parametrize('equation,expected', [
         ('Eq(u_2d.forward, u_2d + 1)',
          '[\'ops_dat_get_raw_pointer(u_dat[0],0,S2D_UT0_1PT,&memspace);\','
-         '\'ops_memspace memspace=OPS_HOST\']')])
+         '\'ops_memspace memspace;\','
+         '\'memspace = OPS_HOST;\']')])
     def test_memory_transfer_call(self, equation, expected):
 
         grid_2d = Grid(shape=(4, 4))
