@@ -9,7 +9,7 @@ from devito.symbolics import Macro
 namespace = OrderedDict()
 AccessibleInfo = namedtuple(
     'AccessibleInfo',
-    ['accessible', 'time', 'shift', 'origin_name'])
+    ['accessible', 'safe_accessible', 'time', 'shift', 'origin_name'])
 
 OpsDatDecl = namedtuple(
     'OpsDatDecl',
