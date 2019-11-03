@@ -106,7 +106,7 @@ class OperatorOPS(Operator):
             have the same number of dimensions"
 
         self._headers.append(namespace['ops_define_dimension'](dims[0]))
-        self._includes.extend(['stdio.h', 'ops_seq.h'])
+        self._includes.extend(['stdio.h', 'ops_seq_v2.h'])
 
         body = [ops_init, ops_block_init, *pre_time_loop,
                 ops_partition, iet, *after_time_loop, ops_exit]
