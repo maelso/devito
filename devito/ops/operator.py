@@ -1,6 +1,8 @@
 from devito import Eq
 from devito.ir.equations import ClusterizedEq
-from devito.ir.iet import Call, Expression, List, derive_parameters, find_affine_trees
+from devito.ir.iet import Call, Expression, List, Section
+from devito.ir.iet.utils import (FindNodes, derive_parameters, find_affine_trees,
+                                 retrieve_iteration_tree)
 from devito.ir.iet.visitors import FindSymbols, Transformer
 from devito.logger import warning
 from devito.operator import Operator
@@ -9,7 +11,7 @@ from devito.tools import filter_sorted
 
 from devito.ops import ops_configuration
 from devito.ops.transformer import (create_ops_dat, create_ops_memory_fetch,
-                                    initialize_memspace, opsit)
+                                    create_ops_memory_set, initialize_memspace, opsit)
 from devito.ops.types import OpsBlock
 from devito.ops.utils import namespace
 
@@ -81,6 +83,7 @@ class OperatorOPS(Operator):
 
             pre_time_loop.extend(create_ops_dat(f, name_to_ops_dat, ops_block))
 
+
         # Generate ops kernels for each offloadable iteration tree
         mapper = {}
         for n, (_, tree) in enumerate(affine_trees):
@@ -89,18 +92,29 @@ class OperatorOPS(Operator):
 
             pre_time_loop.extend(pre_loop)
             self._ops_kernels.append(ops_kernel)
-            # To return the result to Devito, it is necessary to copy the data
-            # from the dat object back to the CPU memory.
-            memory_calls = [create_ops_memory_fetch(f, name_to_ops_dat,
-                                                    par_to_ops_stencil,
-                                                    accessibles_info, memspace)
-                            for f in to_dat if not f.is_Constant]
 
-            mapper[tree[0].root] = List(body=(ops_par_loop_call, memory_calls))
+            # Memory fetch calls
+            memory_fetch_calls = [create_ops_memory_fetch(f, name_to_ops_dat,
+                par_to_ops_stencil, accessibles_info, memspace) for f in to_dat 
+                if not f.is_Constant]
+
+            # Memory set calls
+            memory_set_calls = [create_ops_memory_set(f, name_to_ops_dat,
+                accessibles_info) for f in to_dat if not f.is_Constant]
+
+            mapper[tree[0].root] = List(body=(ops_par_loop_call, memory_fetch_calls))
+
             mapper.update({i.root: mapper.get(i.root) for i in tree})  # Drop trees
 
         iet = Transformer(mapper).visit(iet)
 
+        # Memory set calls should be the last node inside the time loop.
+        mapper = {}
+        time_loop = retrieve_iteration_tree(iet)
+        sections = FindNodes(Section).visit(time_loop)
+        mapper[sections[-1]] = List(body=[sections[-1], memory_set_calls])
+
+        iet = Transformer(mapper).visit(iet)
         assert (d == dims[0] for d in dims), \
             "The OPS backend currently assumes that all kernels \
             have the same number of dimensions"

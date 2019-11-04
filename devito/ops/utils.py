@@ -27,6 +27,8 @@ namespace['ops_exit'] = 'ops_exit'
 namespace['ops_par_loop'] = 'ops_par_loop'
 namespace['ops_memory_fetch'] = lambda ops_dat, ops_stencil, memspace: Call(
     name='ops_dat_get_raw_pointer', arguments=[ops_dat, 0, ops_stencil, memspace])
+namespace['ops_memory_set'] = lambda ops_dat: Call(name='ops_dat_release_raw_data',
+    arguments=[ops_dat, 0, namespace['ops_read_write']])
 
 namespace['ops_decl_stencil'] = Function(name='ops_decl_stencil')
 namespace['ops_decl_block'] = Function(name='ops_decl_block')
@@ -36,6 +38,7 @@ namespace['ops_arg_gbl'] = Function(name='ops_arg_gbl')
 
 namespace['ops_read'] = Macro('OPS_READ')
 namespace['ops_write'] = Macro('OPS_WRITE')
+namespace['ops_read_write'] = Macro('OPS_RW')
 
 namespace['ops_stencil_type'] = 'ops_stencil'
 namespace['ops_block_type'] = 'ops_block'

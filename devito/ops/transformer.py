@@ -251,9 +251,39 @@ def create_ops_memory_fetch(f, name_to_ops_dat, par_to_ops_stencil, accessibles_
                 for k, v in accessibles_info.items() if v.origin_name == f.name]
 
     else:
-        return [namespace['ops_memory_fetch'](ops_dat(0),
+        return [namespace['ops_memory_fetch'](ops_dat(None),
                                               ops_stencil(f.name),
                                               Byref(memspace.expr.lhs))]
+
+
+def create_ops_memory_set(f, name_to_ops_dat, accessibles_info):
+    """Set the data in the GPU.
+
+    After manipulating the data in the CPU, this method must be called to propagate the
+    changes to the GPU.
+
+    Parameters
+    ----------
+    f : Function or TimeFunction
+        Devito object that was transfered into the device memory.
+    name_to_ops_dat : dict of {str : :class:`devito.ops.types.OpsDat`}
+        Given a variable name, get the associated OpsDat object.
+
+    Return
+    ------
+    :class:`devito.ir.iet.nodes.Call`
+        The actual call to `ops_dat_release_raw_data` from OPS API.
+    """
+
+    # Get the OpsDat associated with a Function or TimeFunction f.
+    ops_dat = lambda x: (name_to_ops_dat[f.name].indexify([x]) if f.is_TimeFunction
+                         else name_to_ops_dat[f.name])
+
+    if f.is_TimeFunction:
+        return [namespace['ops_memory_set'](ops_dat(v.time))
+                for k, v in accessibles_info.items() if v.origin_name == f.name]
+    else:
+        return [namespace['ops_memory_set'](ops_dat(None))]
 
 
 def create_ops_par_loop(trees, ops_kernel, parameters, block, name_to_ops_dat,
