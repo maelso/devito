@@ -266,12 +266,12 @@ def create_ops_memory_set(f, name_to_ops_dat, accessibles_info):
     ----------
     f : Function or TimeFunction
         Devito object that was transfered into the device memory.
-    name_to_ops_dat : dict of {str : :class:`devito.ops.types.OpsDat`}
+    name_to_ops_dat : dict of {str : OpsDat}
         Given a variable name, get the associated OpsDat object.
 
     Return
     ------
-    :class:`devito.ir.iet.nodes.Call`
+    Call
         The actual call to `ops_dat_release_raw_data` from OPS API.
     """
 

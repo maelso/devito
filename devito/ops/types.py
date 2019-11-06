@@ -151,6 +151,7 @@ class OpsMemSpace(basic.Symbol):
     def _C_typename(self):
         return self._C_typedata
 
+
 class OpsDat(basic.Symbol):
 
     def __init__(self, name, *args, **kwargs):

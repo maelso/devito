@@ -83,7 +83,6 @@ class OperatorOPS(Operator):
 
             pre_time_loop.extend(create_ops_dat(f, name_to_ops_dat, ops_block))
 
-
         # Generate ops kernels for each offloadable iteration tree
         mapper = {}
         for n, (_, tree) in enumerate(affine_trees):
@@ -95,12 +94,12 @@ class OperatorOPS(Operator):
 
             # Memory fetch calls
             memory_fetch_calls = [create_ops_memory_fetch(f, name_to_ops_dat,
-                par_to_ops_stencil, accessibles_info, memspace) for f in to_dat 
-                if not f.is_Constant]
+                                  par_to_ops_stencil, accessibles_info, memspace)
+                                  for f in to_dat if not f.is_Constant]
 
             # Memory set calls
             memory_set_calls = [create_ops_memory_set(f, name_to_ops_dat,
-                accessibles_info) for f in to_dat if not f.is_Constant]
+                                accessibles_info) for f in to_dat if not f.is_Constant]
 
             mapper[tree[0].root] = List(body=(ops_par_loop_call, memory_fetch_calls))
 
