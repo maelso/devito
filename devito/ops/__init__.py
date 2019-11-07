@@ -5,7 +5,6 @@ JIT-compile, and run kernels on multiple architectures.
 
 from devito.archinfo import Cpu64
 from devito.dle import PlatformRewriter, modes
-from devito.parameters import Parameters, add_sub_configuration
 
 # Add OPS-specific DLE modes
 modes.add(Cpu64, {'noop': PlatformRewriter,

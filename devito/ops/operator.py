@@ -38,7 +38,7 @@ class OperatorOPS(Operator):
         if not affine_trees:
             self._should_compile_with_ops = False
             return super()._specialize_iet(iet, **kwargs)
-        
+
         self._should_compile_with_ops = True
         ops_init = Call(namespace['ops_init'], [0, 0, 2])
         ops_partition = Call(namespace['ops_partition'], Literal('""'))
@@ -129,7 +129,7 @@ class OperatorOPS(Operator):
         if self._should_compile_with_ops:
             # The following used by backends.backendSelector
             from devito.parameters import Parameters, add_sub_configuration
-            from devito.ops.compiler import CompilerOPS # noqa
+            from devito.ops.compiler import CompilerOPS  # noqa
 
             ops_configuration = Parameters('ops')
             ops_configuration.add('compiler', CompilerOPS())
