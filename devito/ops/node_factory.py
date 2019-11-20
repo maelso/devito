@@ -90,6 +90,7 @@ class OPSNodeFactory(object):
         new_c = AccessibleInfo(Constant(name='*%s' % c.name, dtype=c.dtype),
                                Constant(name='(*%s)' % c.name, dtype=c.dtype),
                                None,
+                               None,
                                None)
         self.ops_args[c] = new_c
         self.ops_params.append(new_c.accessible)
