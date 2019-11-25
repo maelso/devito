@@ -224,7 +224,7 @@ class TestOPSExpression(object):
         u = OpsAccessible('u', dtype=np.float32, read_only=read)
         dat = OpsDat('u_dat')
         stencil = OpsStencil('stencil')
-        info = AccessibleInfo(u, None, None, None)
+        info = AccessibleInfo(u, None, None, None, None)
 
         ops_arg = create_ops_arg(u, {'u': info}, {'u': dat}, {'u': stencil})
 
@@ -263,14 +263,14 @@ class TestOPSExpression(object):
 
     @pytest.mark.parametrize('equation,expected', [
         ('Eq(u_2d.forward, u_2d + 1)',
-            '[\'ops_dat_get_raw_pointer(u_dat[t0],0,S2D_UT0_1PT,&memspace);\','
-            '\'ops_dat_get_raw_pointer(u_dat[t1],0,S2D_UT1_1PT,&memspace);\','
+            '[\'ops_dat_get_raw_pointer(u_dat[t0],0,S2D_UT00_1PT,&memspace);\','
+            '\'ops_dat_get_raw_pointer(u_dat[t1],0,S2D_UT10_1PT,&memspace);\','
             '\'ops_memspace memspace = OPS_HOST;\']'),
         ('Eq(v_3d.backward, v_3d.dt2 + b_3d)',
             '[\'ops_memspace memspace = OPS_HOST;\','
-            '\'ops_dat_get_raw_pointer(v_dat[t5],0,S3D_VT5_1PT,&memspace);\','
-            '\'ops_dat_get_raw_pointer(v_dat[t6],0,S3D_VT6_1PT,&memspace);\','
-            '\'ops_dat_get_raw_pointer(v_dat[t7],0,S3D_VT7_1PT,&memspace);\','
+            '\'ops_dat_get_raw_pointer(v_dat[t5],0,S3D_VT50_1PT,&memspace);\','
+            '\'ops_dat_get_raw_pointer(v_dat[t6],0,S3D_VT60_1PT,&memspace);\','
+            '\'ops_dat_get_raw_pointer(v_dat[t7],0,S3D_VT70_1PT,&memspace);\','
             '\'ops_dat_get_raw_pointer(b_dat,0,S3D_B_1PT,&memspace);\']')])
     def test_memory_transfer_call(self, equation, expected):
 
