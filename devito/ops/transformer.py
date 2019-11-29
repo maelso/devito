@@ -1,6 +1,7 @@
 import itertools
 import numpy as np
 
+from sympy import Add
 from sympy.core.numbers import Zero
 
 from devito import Eq
