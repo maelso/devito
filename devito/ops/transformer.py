@@ -246,7 +246,7 @@ def create_ops_memory_fetch(f, name_to_ops_dat, par_to_ops_stencil, accessibles_
         else par_to_ops_stencil[0]
 
     if f.is_TimeFunction:
-        return [namespace['ops_memory_fetch'](ops_dat(v.time),
+        return [namespace['ops_memory_fetch'](ops_dat(Add(v.time, v.shift)),
                                               ops_stencil(v.accessible.name),
                                               Byref(memspace.expr.lhs))
                 for k, v in accessibles_info.items() if v.origin_name == f.name]
