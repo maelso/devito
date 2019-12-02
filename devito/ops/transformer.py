@@ -131,7 +131,7 @@ def create_ops_dat(f, name_to_ops_dat, block):
     if f.is_TimeFunction:
         time_pos = f._time_position
         time_index = f.indices[time_pos]
-        time_dims = f.shape[time_pos]
+        time_dims = f.time_order+1
 
         dim_val = f.shape[:time_pos] + f.shape[time_pos + 1:]
         d_p_val = f._size_nodomain.left[time_pos+1:]
