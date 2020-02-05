@@ -130,7 +130,7 @@ def create_ops_dat(f, name_to_ops_dat, block):
     if f.is_TimeFunction:
         time_pos = f._time_position
         time_index = f.indices[time_pos]
-        time_dims = f.time_order + 2
+        time_dims = f.time_order + 1
 
         dim_val = f.shape[:time_pos] + f.shape[time_pos + 1:]
         d_p_val = f._size_nodomain.left[time_pos+1:]
@@ -138,7 +138,7 @@ def create_ops_dat(f, name_to_ops_dat, block):
 
         ops_dat_array = Array(
             name=namespace['ops_dat_name'](f.name),
-            dimensions=(DefaultDimension(name='dat', default_value=time_dims),),
+            dimensions=(DefaultDimension(name='dat', default_value=time_dims+1),),
             dtype=namespace['ops_dat_type'],
             scope='stack'
         )
@@ -167,7 +167,7 @@ def create_ops_dat(f, name_to_ops_dat, block):
                 Symbol(base.name),
                 Symbol(d_m.name),
                 Symbol(d_p.name),
-                Byref(f.indexify([0])),
+                Byref(f.indexify([0, 0, 0])),
                 Literal('"%s"' % f._C_typedata),
                 Literal('"%s"' % name)
             ))
