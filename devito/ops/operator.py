@@ -124,6 +124,16 @@ def make_ops_kernels(iet):
 
     name_to_ops_dat = {}
     pre_time_loop = []
+    from devito.types import Symbol
+    import numpy as np
+    temp = Symbol(
+        name='*temp',
+        dtype=np.float32
+    )
+    # vr = Expression(ClusterizedEq(Eq(Literal('float *temp'), Literal('NULL'))))
+    temp_val = 'NULL'
+    temp_val = Expression(ClusterizedEq(Eq(temp, Literal(temp_val))))
+    pre_time_loop.append(temp_val)
     for f in to_dat:
         if f.is_Constant:
             continue
