@@ -138,7 +138,7 @@ def create_ops_dat(f, name_to_ops_dat, block):
 
         ops_dat_array = Array(
             name=namespace['ops_dat_name'](f.name),
-            dimensions=(DefaultDimension(name='dat', default_value=time_dims),),
+            dimensions=(DefaultDimension(name='dat', default_value=time_dims+1),),
             dtype=namespace['ops_dat_type'],
             scope='stack'
         )
@@ -155,7 +155,7 @@ def create_ops_dat(f, name_to_ops_dat, block):
                 Symbol(d_m.name),
                 Symbol(d_p.name),
                 # Byref(f.indexify([i])),
-                Literal('temp'),
+                Literal('NULL'),
                 Literal('"%s"' % f._C_typedata),
                 Literal('"%s"' % name)
             ))
