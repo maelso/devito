@@ -130,7 +130,7 @@ def create_ops_dat(f, name_to_ops_dat, block):
     if f.is_TimeFunction:
         time_pos = f._time_position
         time_index = f.indices[time_pos]
-        time_dims = f.time_order + 1
+        time_dims = f.time_order + 2
 
         dim_val = f.shape[:time_pos] + f.shape[time_pos + 1:]
         d_p_val = f._size_nodomain.left[time_pos+1:]
@@ -154,7 +154,20 @@ def create_ops_dat(f, name_to_ops_dat, block):
                 Symbol(base.name),
                 Symbol(d_m.name),
                 Symbol(d_p.name),
-                Byref(f.indexify([i])),
+                # Byref(f.indexify([i])),
+                Literal('temp'),
+                Literal('"%s"' % f._C_typedata),
+                Literal('"%s"' % name)
+            ))
+        
+        dat_decls.append(namespace['ops_decl_dat'](
+                block,
+                1,
+                Symbol(dim.name),
+                Symbol(base.name),
+                Symbol(d_m.name),
+                Symbol(d_p.name),
+                Byref(f.indexify([0])),
                 Literal('"%s"' % f._C_typedata),
                 Literal('"%s"' % name)
             ))
