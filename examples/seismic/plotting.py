@@ -67,8 +67,10 @@ def plot_velocity(model, source=None, receiver=None, colorbar=True):
     extent = [model.origin[0], model.origin[0] + domain_size[0],
               model.origin[1] + domain_size[1], model.origin[1]]
 
-    plot = plt.imshow(np.transpose(model.vp.data), animated=True, cmap=cm.jet,
-                      vmin=np.min(model.vp.data), vmax=np.max(model.vp.data),
+    slices = tuple(slice(model.nbl, -model.nbl) for _ in range(2))
+    field = (getattr(model, 'vp', None) or getattr(model, 'lam')).data[slices]
+    plot = plt.imshow(np.transpose(field), animated=True, cmap=cm.jet,
+                      vmin=np.min(field), vmax=np.max(field),
                       extent=extent)
     plt.xlabel('X position (km)')
     plt.ylabel('Depth (km)')
@@ -152,4 +154,5 @@ def plot_image(data, vmin=None, vmax=None, colorbar=True, cmap="gray"):
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
         plt.colorbar(plot, cax=cax)
-    plt.show()
+    # plt.show()
+    plt.savefig('model.png')
