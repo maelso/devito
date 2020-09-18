@@ -155,4 +155,4 @@ def plot_image(data, vmin=None, vmax=None, colorbar=True, cmap="gray"):
         cax = divider.append_axes("right", size="5%", pad=0.05)
         plt.colorbar(plot, cax=cax)
     # plt.show()
-    plt.savefig('model.png')
+    plt.savefig('devito_propagation.png')
